@@ -5,5 +5,7 @@
 # Compiled Dynamic libraries
 *.so
 
+.*.d
+
 # Executables
 ads1256_dac8552
