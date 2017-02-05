@@ -106,7 +106,8 @@ void ADS1256_DelayDATA(void)
 	   min  50   CLK = 50 * 0.13uS = 6.5uS
 	 */
 	//bsp_DelayUS(10);        /* The minimum time delay 6.5us */
-	usleep(7);
+	// usleep(7);
+	delayMicroseconds(7) ;
 }
 
 

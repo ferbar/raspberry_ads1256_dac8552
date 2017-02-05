@@ -10,6 +10,9 @@
 
 #include "utils.h"
 #include "ads1256.h"
+#include "dac8532.h"
+
+#include <getopt.h>
 
 /*
              define from bcm2835.h                       define from Board DVK511
@@ -34,53 +37,55 @@ RPI_V2_GPIO_P1_13->RPI_GPIO_P1_13
 ::
 */
 
+bool cfg_debug=false;
+bool cfg_dump=false;
+bool cfg_led_test=false;
 
 
 int main(int argc, char*argv[] ) {
+	int spiSpeed=500000;
+	while (1) {
+		int c;
+		int option_index = 0;
+		static struct option long_options[] = {
+			{"help", 0, NULL, 'h'},
+			{"debug", 0, NULL, 'd'},
+			{"dump", 0, NULL, 'u'},
+			{"version", 0, NULL, 'v'},
+			{"spi-speed", 1, NULL, 's'},
+			{"led-test", 0, NULL, 'l'},
+			{0, 0, 0, 0}
+		};
+		c = getopt_long(argc, argv, "hduvs:l", long_options, &option_index);
+		if (c == -1)
+			break;
+		switch (c) {
+			case 'v':
+				printf("version %s\n", _STR(SVNVERSION));
+				exit(0);
+			case 'd':
+				cfg_debug=1;
+			case 'u':
+				cfg_dump=1;
+				/* no break */
+			case 'l':
+				cfg_led_test=1;
+			case 'h':
+			default:
+				printf("raspberry pi waveshare High-Precision AD/DA Board test\n");
+				exit(1);
+		}
+	}
+
+
+	DAC8532_initPins();
 	ADS1256_initPins();
-	int spiHandle=ADS1256_openSPI(500000);
+	int spiHandle=ADS1256_openSPI(spiSpeed);
 	ADS1256_init(spiHandle);
-/*
-	int id=ADS1256_ReadChipID(spiHandle);
-	printf("ADS1256 chip ID: %d\n", id);
-
-	// select ADC:
-	digitalWrite(ADS1256_CS, LOW); //pi.write(22, 0)    # ADS1256 /CS low
-	ADS1256_WaitDRDY();
-
-	write(spiHandle,"\xfe", 1); // pi.spi_write(ad_da, b'\xfe') # command 0xfe: soft-reset command
-	usleep(500 * 1000);     // wait 0.5 sec
-
-	// set register 00 (STATUS) reg.00,one byte,no autocal,no buffer
-	ADS1256_WaitDRDY();
-	digitalWrite(ADS1256_CS, LOW); //pi.write(22, 0)    # ADS1256 /CS low
-	const char status[5]= { '\xfc', '\x00' ,(CMD_WREG | REG_STATUS) , '\x00', 1 };
-	write(spiHandle, status, 5); // pi.spi_write(ad_da, b'\xfc\x00\x50\x00\x01')
-	digitalWrite(ADS1256_CS, HIGH); //pi.write(22, 1)    # ADS1256 /CS high
-	usleep(100); // wait 0.1 msec
-
-	printf("status initialized1\n");
-
-	// set register 02 (ADCON)
-	ADS1256_WaitDRDY();
-	digitalWrite(ADS1256_CS, LOW); //pi.write(22, 0)    # ADS1256 /CS low
-	const char adcon[5]= { '\xfc', '\x00' ,(CMD_WREG | REG_ADCON) , '\x00', ADS1256_GAIN_1 };
-	printf("adcon: >>"); printHex(adcon,5); printf("<<\n");
-	write(spiHandle, adcon,5); //pi.spi_write(ad_da, b'\xfc\x00\x52\x00\x00')
-	digitalWrite(ADS1256_CS, HIGH); //pi.write(22, 1)    # ADS1256 /CS high
-	usleep(100); // wait 0.1 msec
-
-	// pi.set register 03 (DRATE) reg.03,one byte,10 samples per secondc
-	ADS1256_WaitDRDY();
-	digitalWrite(ADS1256_CS, LOW); //pi.write(22, 0)    # ADS1256 /CS low
-	const char drate[5]= { '\xfc', '\x00', (CMD_WREG | REG_DRATE) ,'\x00', ADS1256_1000SPS};
-	printf("drate: >>"); printHex(drate,5); printf("<<\n");
-	write(spiHandle, drate, 5); //pi.spi_write(ad_da, b'\xfc\x00\x53\x00\x23')
-	digitalWrite(ADS1256_CS, HIGH); //pi.write(22, 1)    # ADS1256 /CS high
-	usleep(100);  // wait 0.1 msec
-
-	printf("adcon + drate initialized\n");
-*/
+	if(cfg_led_test) {
+		fadeLeds(spiHandle);
+		exit(0);
+	}
 	
 	while(true) {
 		ADS1256_WaitDRDY();

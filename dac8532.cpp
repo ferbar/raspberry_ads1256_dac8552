@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 #include <assert.h>
-#include "dac8552.h"
+#include "dac8532.h"
 
 #include <unistd.h>
 #include <string.h>
@@ -25,8 +25,7 @@
 #define CS1_0() bcm2835_gpio_write(SPICS1,LOW)
 
 
-void initiDAC8532Pins() {
-	wiringPiSetup();
+void DAC8532_initPins() {
 	printf("setting pins\n");
 	// set GPIO data direction          ("pin*" = 40pin only):
 	// pi.set_mode(0, pigpio.INPUT)     # pin*27 (Raspi-hat ID_SD)
@@ -77,19 +76,14 @@ void initiDAC8532Pins() {
 }
 
 
-/*
-*********************************************************************************************************
-*       name: Write_DAC8552
-*       function:  DAC send data 
-*       parameter: channel : output channel number (0x30 oder 0x34)
-*                          data : output DAC value 
-*       The return value:  NULL
-*********************************************************************************************************
-*/
-void Write_DAC8552(int spiHandle, uint8_t channel, uint16_t data)
+/**
+ * DAC send data 
+ * @param handle
+ * @param channel : output channel number (0x30 oder 0x34)
+ * @param data : output DAC value 
+ */
+void DAC8552_write(int spiHandle, uint8_t channel, uint16_t data)
 {
-	uint8_t i;
-
 	unsigned char buffer[3];
 	buffer[0] = channel;
 	buffer[1] = data>>8;
@@ -112,7 +106,7 @@ void Write_DAC8552(int spiHandle, uint8_t channel, uint16_t data)
 int rc;
 // while(1) {
 	//printf("+");
-	digitalWrite(DAC8532_CS, HIGH);
+	// digitalWrite(DAC8532_CS, HIGH);
 	//printf("-");
 	digitalWrite(DAC8532_CS, LOW);
 	// write(spiChannel, buffer, sizeof(buffer));
@@ -139,8 +133,8 @@ int rc;
 void fadeLeds(int spiChannel) {
 	while(1) {
 		for(int i=0; i < 6400; i++) {
-			Write_DAC8552(spiChannel, 0x30, i*10);
-			Write_DAC8552(spiChannel, 0x34, (6400-i)*10);
+			DAC8552_write(spiChannel, 0x30, i*10);
+			DAC8552_write(spiChannel, 0x34, (6400-i)*10);
 			if(i%10 == 0 ) {
 				printf("."); fflush(stdout);
 			} else {
