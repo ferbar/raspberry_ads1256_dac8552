@@ -7,12 +7,14 @@
 #include <string.h>
 #include <errno.h>
 #include <wiringPi.h>
+#include <getopt.h>
+#include <signal.h>
 
 #include "utils.h"
 #include "ads1256.h"
 #include "dac8532.h"
+#include "server.h"
 
-#include <getopt.h>
 
 /*
              define from bcm2835.h                       define from Board DVK511
@@ -41,9 +43,19 @@ bool cfg_debug=false;
 bool cfg_dump=false;
 bool cfg_led_test=false;
 
+bufferEntry buffer[maxBufferEntries];
+int bufferPos=0;
+
+void *ADCThreadFunc(void*data); 
+
+void signalHandler(int signo, siginfo_t *p, void *ucontext)
+{
+        printf("signalHandler\n");
+        Server::setExit();
+}
+
 
 int main(int argc, char*argv[] ) {
-	int spiSpeed=500000;
 	while (1) {
 		int c;
 		int option_index = 0;
@@ -52,7 +64,7 @@ int main(int argc, char*argv[] ) {
 			{"debug", 0, NULL, 'd'},
 			{"dump", 0, NULL, 'u'},
 			{"version", 0, NULL, 'v'},
-			{"spi-speed", 1, NULL, 's'},
+			// {"spi-speed", 1, NULL, 's'},
 			{"led-test", 0, NULL, 'l'},
 			{0, 0, 0, 0}
 		};
@@ -77,7 +89,36 @@ int main(int argc, char*argv[] ) {
 		}
 	}
 
+	struct sigaction sa;
+        memset(&sa,0,sizeof(sa));
+        sa.sa_sigaction=signalHandler;
+        sa.sa_flags=SA_SIGINFO;
+        sigaction(SIGINT,&sa,NULL);
+        sigaction(SIGTERM,&sa,NULL);
 
+	pthread_t ADCThread;
+	bzero(&ADCThread,sizeof(ADCThread));
+	if(int rc=pthread_create(&ADCThread, NULL, ADCThreadFunc, NULL) != 0) {
+		printf("error creating new thread rc=%d\n",rc);
+		perror("error creating new thread ");
+		exit(1);
+	}
+	printf("new Thread: %lx\n",ADCThread);
+	pthread_detach(ADCThread);
+
+
+	int port=3030;
+	Server server(port);
+	try {
+		server.run();
+	} catch(std::runtime_error &e) {
+		printf("exception: %s\n", e.what());
+	}
+	server.waitExit();
+}
+
+void *ADCThreadFunc(void*data) {
+	int spiSpeed=500000;
 	DAC8532_initPins();
 	ADS1256_initPins();
 	int spiHandle=ADS1256_openSPI(spiSpeed);
@@ -87,7 +128,7 @@ int main(int argc, char*argv[] ) {
 		exit(0);
 	}
 	
-	while(true) {
+	while(Server::isrunning) {
 		ADS1256_WaitDRDY();
 		digitalWrite(ADS1256_CS, LOW); // pi.write(22, 0)    # ADS1256 /CS low
 		// set register01(MUX) reg.01,one byte,AIN0/AINCOM:0x51,0x00,0x08
@@ -109,7 +150,14 @@ int main(int argc, char*argv[] ) {
 		// discard databyte[0:5]
 		// concatenate 3 bytes of databyte[6:8], [6] is MSB:
 		int  data = (databyte[0]<<16 | databyte[1]<<8 | databyte[2]);
+		buffer[bufferPos].time = getCurrentTime();
+		buffer[bufferPos++].value = data;
+		if(bufferPos >= maxBufferEntries) {
+			bufferPos=0;
+		}
+		
 		double volt = ((double)data / 0x7fffff) *5;
 		printf("data: %8d => %01.4f count=%d\n", data, volt, count);
 	}
+	return NULL;
 }
