@@ -1,10 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <wiringPiSPI.h>
-#include <time.h>
 #include <stdexcept>
-
 #include <assert.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
+#include <wiringPi.h>
+
+#include "utils.h"
+#include "ads1256.h"
 
 /*
              define from bcm2835.h                       define from Board DVK511
@@ -29,21 +34,6 @@ RPI_V2_GPIO_P1_13->RPI_GPIO_P1_13
 ::
 */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <math.h>
-#include <errno.h>
-#include <inttypes.h>
-#include <wiringPi.h>
-
-#include <stdint.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <linux/spi/spidev.h>
-
-#include "utils.h"
-#include "ads1256.h"
 
 
 int main(int argc, char*argv[] ) {
