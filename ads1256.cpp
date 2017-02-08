@@ -271,10 +271,10 @@ void ADS1256_init(int spiHandle) {
 	write(spiHandle,"\xfe", 1); // pi.spi_write(ad_da, b'\xfe') # command 0xfe: soft-reset command
 	usleep(500 * 1000);     // wait 0.5 sec
 
-	// set register 00 (STATUS) reg.00,one byte,no autocal,no buffer
+	// set register 00 (STATUS) reg.00,one byte,no autocal, buffer=2
 	ADS1256_WaitDRDY();
 	digitalWrite(ADS1256_CS, LOW); //pi.write(22, 0)    # ADS1256 /CS low
-	const char status[5]= { '\xfc', '\x00' ,(CMD_WREG | REG_STATUS) , '\x00', 1 };
+	const char status[5]= { '\xfc', '\x00' ,(CMD_WREG | REG_STATUS) , '\x00', 1 /*buffer enable*/ /*+2*/ /* order +8*/ };
 	write(spiHandle, status, 5); // pi.spi_write(ad_da, b'\xfc\x00\x50\x00\x01')
 	digitalWrite(ADS1256_CS, HIGH); //pi.write(22, 1)    # ADS1256 /CS high
 	usleep(100); // wait 0.1 msec

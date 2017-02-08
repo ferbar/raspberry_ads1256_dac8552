@@ -8,7 +8,7 @@
 
 class ClientThread : public TCPClient {
 public:
-	ClientThread(int id, int so) : TCPClient(so, id) {
+	ClientThread(int id, int so) : TCPClient(id, so) {
 	};
 	virtual ~ClientThread();
 	virtual void run();

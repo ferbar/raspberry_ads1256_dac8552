@@ -42,8 +42,9 @@ RPI_V2_GPIO_P1_13->RPI_GPIO_P1_13
 bool cfg_debug=false;
 bool cfg_dump=false;
 bool cfg_led_test=false;
+int cfg_max_channels=4;
 
-bufferEntry buffer[maxBufferEntries];
+bufferEntry ADCbuffer[maxBufferEntries];
 int bufferPos=0;
 
 void *ADCThreadFunc(void*data); 
@@ -77,11 +78,13 @@ int main(int argc, char*argv[] ) {
 				exit(0);
 			case 'd':
 				cfg_debug=1;
+				break;
 			case 'u':
 				cfg_dump=1;
-				/* no break */
+				break;
 			case 'l':
 				cfg_led_test=1;
+				break;
 			case 'h':
 			default:
 				printf("raspberry pi waveshare High-Precision AD/DA Board test\n");
@@ -128,14 +131,16 @@ void *ADCThreadFunc(void*data) {
 		exit(0);
 	}
 	
+	int channel=0;
 	while(Server::isrunning) {
 		ADS1256_WaitDRDY();
 		digitalWrite(ADS1256_CS, LOW); // pi.write(22, 0)    # ADS1256 /CS low
+		// laut datasheet seite 21 können wir neues mux setzen und dann daten lesen
 		// set register01(MUX) reg.01,one byte,AIN0/AINCOM:0x51,0x00,0x08
 		// send commands 0xfc:sync ,0x00:wakeup, 0x01:read data      
 		// and read one ADC-value (3 bytes):
  		// (count, databyte) = pi.spi_xfer(ad_da, b'\x51\x00\x08\xfc\x00\x01\x00\x00\x00')
-		unsigned char databyte[6] = {(CMD_WREG | REG_MUX), '\x00', '\x08', CMD_SYNC, CMD_WAKEUP, CMD_RDATA};
+		unsigned char databyte[6] = {(CMD_WREG | REG_MUX), '\x00', (unsigned char) (((channel+1)%cfg_max_channels) << 4 | 8), CMD_SYNC, CMD_WAKEUP, CMD_RDATA};
 		// int count=wiringPiSPIDataRW(SPICHANNEL, databyte, sizeof(databyte));
 		write(spiHandle, databyte, 6);
 
@@ -146,18 +151,25 @@ void *ADCThreadFunc(void*data) {
 		int count=read(spiHandle, databyte, 3);
 
 		digitalWrite(ADS1256_CS, HIGH); // pi.write(22, 1)    # ADS1256 /CS high
-		printf("%x %x %x \n",databyte[0], databyte[1], databyte[2]);
+		// printf("%x %x %x \n",databyte[0], databyte[1], databyte[2]);
 		// discard databyte[0:5]
 		// concatenate 3 bytes of databyte[6:8], [6] is MSB:
 		int  data = (databyte[0]<<16 | databyte[1]<<8 | databyte[2]);
-		buffer[bufferPos].time = getCurrentTime();
-		buffer[bufferPos++].value = data;
-		if(bufferPos >= maxBufferEntries) {
-			bufferPos=0;
-		}
+		ADCbuffer[bufferPos].time = getCurrentTime();
+		ADCbuffer[bufferPos].value[channel] = data;
 		
 		double volt = ((double)data / 0x7fffff) *5;
-		printf("data: %8d => %01.4f count=%d\n", data, volt, count);
+		if(cfg_debug) {
+			printf("[%d] data: %02x %02x %02x %8d => %01.4f count=%d\n", channel, databyte[0], databyte[1], databyte[2], data, volt, count);
+		}
+		channel++;
+		if(channel>=cfg_max_channels) {
+			channel=0;
+			bufferPos++;
+			if(bufferPos >= maxBufferEntries) {
+				bufferPos=0;
+			}
+		}
 	}
 	return NULL;
 }

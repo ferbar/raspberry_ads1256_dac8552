@@ -14,8 +14,10 @@
   #define ANSI_GREEN "\x1b[32m"
   #define ANSI_GREENBOLD "\x1b[32;1m"
 
+extern const std::string NOT_SET;
 
 extern bool cfg_debug;
+extern int cfg_max_channels;
 
 double getCurrentTime();
 
@@ -23,11 +25,28 @@ void printHex(const char *s, int len);
 
 struct bufferEntry {
 	double time;
-	int value;
+	int value[8];
 };
 const int maxBufferEntries=1000;
-extern bufferEntry buffer[];
+extern bufferEntry ADCbuffer[];
 extern int bufferPos;
+
+#include <string>
+#include <sstream>
+
+namespace utils
+{
+
+	template < typename T > std::string to_string( const T& n )
+	{
+		std::ostringstream stm ;
+		stm << n ;
+		return stm.str() ;
+	}
+
+	std::string format(const char* fmt, ...);
+	double stod(const std::string &in);
+}
 
 
 #endif

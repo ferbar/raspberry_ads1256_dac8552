@@ -45,7 +45,7 @@
 void ClientThread::sendMessage(const std::string &msg)
 {
 	int msgsize=msg.size();
-	printf("%d:  sendMessage size: %zu+4 %s\n", this->clientID, msg.size(), msg.c_str());
+	printf("%d:  sendMessage size: %zu+4 >>>%s<<<\n", this->clientID, msg.size(), msg.c_str());
 	this->prepareMessage();
 	write(this->so, &msgsize, 4);
 	write(this->so, msg.data(), msg.size());
@@ -60,7 +60,7 @@ void ClientThread::run()
 
 	printf("%d:socket accepted sending welcome msg\n",this->clientID);
 	std::string heloReply="raspi adc\n";
-	sendMessage(heloReply);
+	this->sendMessage(heloReply);
 
 	printf("%d:hello done, enter main loop\n",this->clientID);
 	while(1) {
@@ -69,6 +69,7 @@ void ClientThread::run()
 		int rc;
 		this->readSelect(); // auf daten warten, macht exception wenn innerhalb vom timeout nix kommt
 		if((rc=read(this->so, &msgsize, 4)) != 4) {
+			if(rc==3) printf("$d: %d %d %d\n",msgsize & 0xff, msgsize >> 8 & 0xff, msgsize >> 24 & 0xff );
 			throw std::runtime_error("error reading cmd: " + rc);
 		}
 		// printf("%d:reading msg.size: %d bytes\n",this->clientID,msgsize);
@@ -82,13 +83,40 @@ void ClientThread::run()
 		}
 		std::string message(buffer,msgsize);
 		
-		if(cfg_debug) {
+		//if(cfg_debug) {
 			printf("%d: msg %s\n", this->clientID, message.c_str());
-		}
+		//}
 		switch (message.at(0)) {
 			case 's': { 
 				break; }
-			case 'g': { 
+			case 'g': {
+				double startTime=utils::stod(message.substr(1));
+				printf("%d sending data since %.6f\n", this->clientID, startTime);
+				
+				int pos=bufferPos;
+/*
+				if(pos > 0)
+					pos--;
+				else
+					pos=maxBufferEntries-1;
+*/
+				std::string data="";
+				for(int i=1; i < maxBufferEntries; i++) { // wir schreiben in der main loop an die stelle [bufferPos] rein
+					int p=(i+pos) % maxBufferEntries;
+					double time=ADCbuffer[p].time;
+					if(time == 0.0) continue;
+					if(time <= startTime) continue;
+					data+=utils::format("%.6f", time);
+					for(int i=0; i < 8; i++) {
+						int value=0;
+						if(i < cfg_max_channels) {
+							value=ADCbuffer[p].value[i];
+						}
+						data+=utils::format(" %d", value);
+					}
+					data+="\n";
+				}
+				this->sendMessage(data);
 				break; }
 			default: {
 				throw std::runtime_error("invalid command ("+message+")");
