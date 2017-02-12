@@ -18,13 +18,14 @@
 std::RuntimeExceptionWithBacktrace::RuntimeExceptionWithBacktrace(const std::string &what)
 	: std::runtime_error(what)
 {
-	void *array[10];
+	#define SIZE 10
+	void *array[SIZE];
 	size_t size;
 
-	/* --- print simple backtrace
 	// get void*'s for all entries on the stack
-	size = backtrace(array, 10);
+	size = backtrace(array, SIZE);
 
+	/* --- print simple backtrace
 	// print out all the frames to stderr das kamma mit addr2line noch anschaun dann:
 	fprintf(stderr, "Error: %s size=%zd\n", what.c_str(), size);
 	backtrace_symbols_fd(array, size, STDERR_FILENO);
