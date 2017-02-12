@@ -18,6 +18,7 @@
 std::RuntimeExceptionWithBacktrace::RuntimeExceptionWithBacktrace(const std::string &what)
 	: std::runtime_error(what)
 {
+	std::cerr << "Exception: " << what << std::endl;
 	#define SIZE 10
 	void *array[SIZE];
 	size_t size;
