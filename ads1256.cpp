@@ -38,11 +38,20 @@ RPI_V2_GPIO_P1_13->RPI_GPIO_P1_13
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
+#include <pthread.h>
+
 
 #include "utils.h"
 #include "ads1256.h"
 
 int cfg_spiSpeed=-1;
+char cfg_ADS1256_input_gain=ADS1256_GAIN_1;
+char cfg_ADS1256_sample_rate=ADS1256_1000SPS;
+bool cfg_ADS1256_input_buffer=false;
+
+pthread_mutex_t ADS1256_mutex;
+
+int ADS1256_spiHandle=-1;
 
 void ADS1256_initPins() {
 	wiringPiSetup();
@@ -252,14 +261,19 @@ int ADS1256_openSPI(int spiSpeed) {
 		exit(1);
 	}
 	printf("current mode: %d\n", mode);
+
+	// init mutex:
+	pthread_mutex_init(&ADS1256_mutex, NULL);
+
+	ADS1256_spiHandle=spiHandle;
 	return spiHandle;
 
 }
 
 void ADS1256_init(int spiHandle) {
 
-// exit(1);
-	
+	ADS1256_lock();
+	ADS1256_WaitDRDY();
 
 	int id=ADS1256_ReadChipID(spiHandle);
 	printf("ADS1256 chip ID: %d\n", id);
@@ -274,7 +288,7 @@ void ADS1256_init(int spiHandle) {
 	// set register 00 (STATUS) reg.00,one byte,no autocal, buffer=2
 	ADS1256_WaitDRDY();
 	digitalWrite(ADS1256_CS, LOW); //pi.write(22, 0)    # ADS1256 /CS low
-	const char status[5]= { '\xfc', '\x00' ,(CMD_WREG | REG_STATUS) , '\x00', 1 /*buffer enable*/ /*+2*/ /* order +8*/ };
+	const char status[5]= { '\xfc', '\x00' ,(CMD_WREG | REG_STATUS) , '\x00', /*buffer enable*/ (char)(cfg_ADS1256_input_buffer << 1) /*+2*/ /* order +8*/ };
 	write(spiHandle, status, 5); // pi.spi_write(ad_da, b'\xfc\x00\x50\x00\x01')
 	digitalWrite(ADS1256_CS, HIGH); //pi.write(22, 1)    # ADS1256 /CS high
 	usleep(100); // wait 0.1 msec
@@ -284,7 +298,7 @@ void ADS1256_init(int spiHandle) {
 	// set register 02 (ADCON)
 	ADS1256_WaitDRDY();
 	digitalWrite(ADS1256_CS, LOW); //pi.write(22, 0)    # ADS1256 /CS low
-	const char adcon[5]= { '\xfc', '\x00' ,(CMD_WREG | REG_ADCON) , '\x00', ADS1256_GAIN_1 };
+	const char adcon[5]= { '\xfc', '\x00' ,(CMD_WREG | REG_ADCON) , '\x00', cfg_ADS1256_input_gain };
 	printf("adcon: >>"); printHex(adcon,5); printf("<<\n");
 	write(spiHandle, adcon,5); //pi.spi_write(ad_da, b'\xfc\x00\x52\x00\x00')
 	digitalWrite(ADS1256_CS, HIGH); //pi.write(22, 1)    # ADS1256 /CS high
@@ -293,13 +307,14 @@ void ADS1256_init(int spiHandle) {
 	// pi.set register 03 (DRATE) reg.03,one byte,10 samples per secondc
 	ADS1256_WaitDRDY();
 	digitalWrite(ADS1256_CS, LOW); //pi.write(22, 0)    # ADS1256 /CS low
-	const char drate[5]= { '\xfc', '\x00', (CMD_WREG | REG_DRATE) ,'\x00', ADS1256_1000SPS};
+	const char drate[5]= { '\xfc', '\x00', (CMD_WREG | REG_DRATE) ,'\x00', cfg_ADS1256_sample_rate};
 	printf("drate: >>"); printHex(drate,5); printf("<<\n");
 	write(spiHandle, drate, 5); //pi.spi_write(ad_da, b'\xfc\x00\x53\x00\x23')
 	digitalWrite(ADS1256_CS, HIGH); //pi.write(22, 1)    # ADS1256 /CS high
 	usleep(100);  // wait 0.1 msec
 
 	printf("adcon + drate initialized\n");
+	ADS1256_unlock();
 /*	
 	while(true) {
 		ADS1256_WaitDRDY();
@@ -327,4 +342,44 @@ void ADS1256_init(int spiHandle) {
 		printf("data: %8d => %01.4f count=%d\n", data, volt, count);
 	}
 */
+}
+
+bool ADS1256_setConfig(std::string key, std::string value) {
+	if(key=="input_gain") {
+		cfg_ADS1256_input_gain = std::stoi(value);
+	} else if(key=="sample_rate") {
+		cfg_ADS1256_sample_rate = std::stoi(value);
+	} else if(key=="input_buffer") {
+		cfg_ADS1256_input_buffer = utils::stobool(value);
+	} else std::runtime_error("ADS1256_setConfig invalid key ["+key+"]");
+	ADS1256_init(ADS1256_spiHandle);
+	return true;
+}
+
+
+std::string ADS1256_getConfig(std::string key) {
+	if(key=="input_gain") {
+		return utils::to_string(cfg_ADS1256_input_gain);
+	} else if(key=="sample_rate") {
+		return utils::to_string(cfg_ADS1256_sample_rate);
+	} else if(key=="input_buffer") {
+		return utils::to_string(cfg_ADS1256_input_buffer);
+	} else std::runtime_error("ADS1256_getConfig invalid key");
+
+	// dummy return ...
+	return "";
+}
+
+void ADS1256_lock() {
+	int rc=pthread_mutex_lock(&ADS1256_mutex);
+	if(rc) {
+		throw std::runtime_error("error locking mutex");
+	}
+}
+
+void ADS1256_unlock() {
+	int rc=pthread_mutex_unlock(&ADS1256_mutex);
+	if(rc) {
+		throw std::runtime_error("error unlocking mutex");
+	}
 }

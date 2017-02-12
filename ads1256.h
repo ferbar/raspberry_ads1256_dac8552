@@ -173,5 +173,14 @@ uint8_t ADS1256_ReadReg(int spiHandle, uint8_t _regID);
 
 uint8_t ADS1256_ReadChipID(int spiHandle);
 
+std::string ADS1256_getConfig(std::string key);
+bool ADS1256_setConfig(std::string key, std::string value);
+
+extern char cfg_ADS1256_input_gain;
+extern char cfg_ADS1256_sample_rate;
+extern bool cfg_ADS1256_input_buffer;
+
+void ADS1256_lock();
+void ADS1256_unlock();
 
 #endif
