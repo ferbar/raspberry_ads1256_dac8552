@@ -29,6 +29,7 @@ void printHex(const char *s, int len) {
 	}
 }
 
+#ifdef NO_STD_STOD
 double utils::stod(const std::string &in)  {
 	if(in == NOT_SET) {
 		throw std::runtime_error("NOT SET");
@@ -39,6 +40,13 @@ double utils::stod(const std::string &in)  {
 		throw std::runtime_error("error converting number ["+in+"]");
 	}
 	return ret;
+}
+#endif
+
+bool utils::stobool(const std::string &in) {
+	if(in=="false") return false;
+	if(in=="true") return true;
+	throw new std::runtime_error("error: invalid in ["+in+"]");
 }
 
 
@@ -59,4 +67,8 @@ std::string utils::format(const char* fmt, ...){
     va_end(vl);
     delete[] buffer;
     return ret;
+}
+
+bool utils::startsWith(const std::string &str, const char *with) {
+	return str.find(with) == 0;
 }

@@ -45,7 +45,11 @@ namespace utils
 	}
 
 	std::string format(const char* fmt, ...);
+#ifdef NO_STD_STOD
 	double stod(const std::string &in);
+#endif
+	bool stobool(const std::string &in);
+	bool startsWith(const std::string &str, const char *with);
 }
 
 
