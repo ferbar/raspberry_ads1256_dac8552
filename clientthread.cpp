@@ -87,10 +87,16 @@ void ClientThread::run()
 			printf("%d: msg %s\n", this->clientID, message.c_str());
 		//}
 		switch (message.at(0)) {
+			case 'p': { // ping
+				std::string data="pong";
+				this->sendMessage(data);
+				break; }
 			case 's': { 
+				std::string data="ok";
+				this->sendMessage(data);
 				break; }
 			case 'g': {
-				double startTime=utils::stod(message.substr(1));
+				double startTime=std::stod(message.substr(1));
 				printf("%d sending data since %.6f\n", this->clientID, startTime);
 				
 				int pos=bufferPos;
