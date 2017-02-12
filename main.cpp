@@ -133,6 +133,7 @@ void *ADCThreadFunc(void*data) {
 	
 	int channel=0;
 	while(Server::isrunning) {
+		ADS1256_lock();
 		ADS1256_WaitDRDY();
 		digitalWrite(ADS1256_CS, LOW); // pi.write(22, 0)    # ADS1256 /CS low
 		// laut datasheet seite 21 können wir neues mux setzen und dann daten lesen
@@ -170,6 +171,7 @@ void *ADCThreadFunc(void*data) {
 				bufferPos=0;
 			}
 		}
+		ADS1256_unlock();
 	}
 	return NULL;
 }

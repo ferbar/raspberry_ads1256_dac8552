@@ -40,6 +40,7 @@
 #include "utils.h"
 #include "server.h"
 #include "clientthread.h"
+#include "ads1256.h"
 
 
 void ClientThread::sendMessage(const std::string &msg)
@@ -91,11 +92,34 @@ void ClientThread::run()
 				std::string data="pong";
 				this->sendMessage(data);
 				break; }
-			case 's': { 
+			case 's': { // set config
 				std::string data="ok";
-				this->sendMessage(data);
+				std::string c=message.substr(2);
+				int pos=c.find('=');
+				if(pos <= 0) {
+					this->sendMessage("error");
+				} else {
+					std::string key=c.substr(0,pos);
+					std::string value=c.substr(pos+1);
+					printf("setting key=value %s=%s\n",key.c_str(), value.c_str());
+					if(key=="adc_max_channels") {
+						cfg_max_channels=std::stoi(value);
+					} else if(utils::startsWith(key,"adc_")) {
+						key=key.substr(4);
+						ADS1256_setConfig(key,value);
+					}
+					this->sendMessage(utils::format("%s", value.c_str()));
+				}
 				break; }
-			case 'g': {
+			case 'g': { // get config
+				std::string key=message.substr(1);
+				if(key=="adc_max_channels"){
+					this->sendMessage(utils::to_string(cfg_max_channels));
+				} else if(utils::startsWith(key,"adc_")) {
+					this->sendMessage(ADS1256_getConfig(key));
+				}
+				break; }
+			case 'd': { // get data
 				double startTime=std::stod(message.substr(1));
 				printf("%d sending data since %.6f\n", this->clientID, startTime);
 				
