@@ -45,7 +45,7 @@
 void ClientThread::sendMessage(const std::string &msg)
 {
 	int msgsize=msg.size();
-	printf("%d:  sendMessage size: %zu+4 >>>%s<<<\n", this->clientID, msg.size(), msg.c_str());
+	printf("%d:  sendMessage size: %zu+4 >>>%.100s<<<\n", this->clientID, msg.size(), msg.c_str());
 	this->prepareMessage();
 	write(this->so, &msgsize, 4);
 	write(this->so, msg.data(), msg.size());
