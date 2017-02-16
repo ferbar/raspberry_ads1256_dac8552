@@ -1,5 +1,5 @@
 # Raspberry PI ads1256 and dac8552
-This is the server code for the Waveshare High-Precision AD/DA Board using Wiring Pi instead of the bcm2835 library. Use it with the [android_ads1256 app](../android_ads1256) to display the adc values.
+This is the server code for the Waveshare High-Precision AD/DA Board using Wiring Pi instead of the bcm2835 library. Use it with the [android_ads1256 app](../../../android_ads1256) to display the adc values.
 
 ## install
 <pre>
